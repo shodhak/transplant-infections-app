@@ -61,8 +61,8 @@ st.markdown("""
 st.markdown("<h1 style='text-align: center; color: #008CBA;'>💬 Transplant Infections AI Chat</h1>", unsafe_allow_html=True)
 st.write("---")
 
-# API URL - Change if deployed
-API_URL = "http://127.0.0.1:8000/query/"
+# API URL - for railway deployment
+API_URL = "web-production-7c3ab.up.railway.app"
 
 # Initialize chat history in session state
 if "chat_history" not in st.session_state:

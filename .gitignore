@@ -1,0 +1,29 @@
+# Ignore virtual environments
+venv/
+env/
+.tr_inf/
+
+# Ignore Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore log files and databases
+logs/
+*.log
+*.sqlite3
+*.db
+
+# Ignore downloaded_papers
+downloaded_papers/
+
+# Ignore scripts
+scripts/
+
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+# Ignore Streamlit cache & config
+.streamlit/

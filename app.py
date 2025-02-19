@@ -349,7 +349,7 @@ with tab2:
 
 # Footer
 st.markdown("---")
-st.markdown("<h5 style='text-align: center;'>🚀 Developed with OpenAI GPT-4o, Meta LLaMA, and DeepSeek R1</h5>", unsafe_allow_html=True)
+st.markdown("<h5 style='text-align: center;'>🚀 Developed with OpenAI GPT-4o, Meta LLaMA, and DeepSeek R1 🚀</h5>", unsafe_allow_html=True)
 st.markdown("""This AI-powered application uses advanced **retrieval-augmented generation (RAG)** language model to extract insights from scientific literature and answer questions in transplant infections. The model generates three responses to each query from **OpenAI GPT-4o, Facebook LLaMA 3.2, and DeepSeek R1**, and synthesizes a final response from those answers. The model may use info outside the document to enhance the answer, and when it does, it will mention that. 
 
 - **App Developed By:** Shreyas Joshi  

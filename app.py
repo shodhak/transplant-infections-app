@@ -13,46 +13,96 @@ st.set_page_config(
 # Custom CSS for Chat UI
 st.markdown("""
     <style>
+    /* General Background */
     body {
-        background-color: #f4f4f4;
+        background-color: #f8f9fa;  /* Off-white background */
+        color: #222222;  /* Deep black text */
     }
+    
     .stApp {
-        background-color: #ffffff;
+        background-color: #ffffff;  /* White app container */
         border-radius: 12px;
         padding: 20px;
         box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
     }
+
+    /* Input Box */
     .stTextInput > div > div > input {
-        border: 2px solid #008CBA;
+        border: 2px solid #57068c;  /* NYU Purple border */
         border-radius: 8px;
         padding: 12px;
         font-size: 16px;
+        color: #222222;  /* Deep black text */
+        background-color: #ffffff;  /* Keep input white */
     }
+
+    /* Buttons */
     .stButton > button {
-        background-color: #008CBA;
+        background-color: #57068c;  /* NYU Purple */
         color: white;
         border: none;
         border-radius: 8px;
         padding: 12px 20px;
         font-size: 16px;
         cursor: pointer;
-        transition: background 0.3s;
+        transition: background 0.3s, color 0.3s;
     }
+
     .stButton > button:hover {
-        background-color: #005F73;
+        background-color: #3e0568;  /* Darker NYU Purple */
+        color: #ffffff;
     }
+
+    /* Chat Message Box */
     .message-box {
         padding: 12px;
         border-radius: 8px;
         margin-bottom: 10px;
+        font-size: 16px;
     }
+
+    /* User Message Styling */
     .user-message {
-        background-color: #D1ECF1;
+        background-color: #f0e6f9;  /* Soft lavender */
+        color: #222222;  /* Black text */
         text-align: right;
+        padding: 10px;
+        border-radius: 8px;
     }
+
+    /* Bot (AI) Message Styling */
     .bot-message {
-        background-color: #E2E3E5;
+        background-color: #e0e0e0;  /* Light gray */
+        color: #222222;
         text-align: left;
+        padding: 10px;
+        border-radius: 8px;
+    }
+
+    /* Improve Visibility of Markdown Text */
+    .stMarkdown {
+        color: #222222 !important;  /* Ensures deep black text */
+    }
+
+    /* Ensure Captions Are Visible */
+    .stCaption {
+        color: #555555 !important;  /* Dark gray */
+    }
+
+    /* Tabs Styling */
+    div[data-baseweb="tab-list"] button {
+        font-size: 18px !important;
+        font-weight: bold !important;
+        color: #222222 !important;
+        background-color: #ffffff !important;
+        border-bottom: 3px solid #57068c !important;
+        padding: 12px 20px;
+    }
+
+    div[data-baseweb="tab-list"] button[aria-selected="true"] {
+        background-color: #f0e6f9 !important;  /* Soft lavender for selected tab */
+        color: #222222 !important;
+        font-weight: bold;
     }
     </style>
 """, unsafe_allow_html=True)

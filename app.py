@@ -355,4 +355,5 @@ st.markdown("""This AI-powered application uses advanced **retrieval-augmented g
 - **App Developed By:** Shreyas Joshi  
 - **Literature Corpus Curated By:** Frank Liu, Berk Maden, and Shreyas Joshi  
 - **Institution:** Keating Lab, NYU Langone Health
+- **Contact: shreyas.joshi@nyulangone.org (bug reports, suggestions, literature updates welcome)**):
 """, unsafe_allow_html=True)

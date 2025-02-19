@@ -15,42 +15,42 @@ st.markdown("""
     <style>
     /* General Background */
     body {
-        background-color: #f8f9fa;  /* Off-white background */
-        color: #222222;  /* Deep black text */
+        background-color: #F8F8F8;  /* Off-white */
+        color: #000000 !important;  /* Black text */
     }
     
     .stApp {
-        background-color: #ffffff;  /* White app container */
+        background-color: #F8F8F8;
         border-radius: 12px;
         padding: 20px;
         box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+        color: #000000 !important;
     }
 
     /* Input Box */
     .stTextInput > div > div > input {
-        border: 2px solid #57068c;  /* NYU Purple border */
+        border: 2px solid #008CBA;
         border-radius: 8px;
         padding: 12px;
         font-size: 16px;
-        color: #222222;  /* Deep black text */
-        background-color: #ffffff;  /* Keep input white */
+        color: #000000 !important;
+        background-color: #ffffff;
     }
 
     /* Buttons */
     .stButton > button {
-        background-color: #57068c;  /* NYU Purple */
+        background-color: #008CBA;
         color: white;
         border: none;
         border-radius: 8px;
         padding: 12px 20px;
         font-size: 16px;
         cursor: pointer;
-        transition: background 0.3s, color 0.3s;
+        transition: background 0.3s;
     }
 
     .stButton > button:hover {
-        background-color: #3e0568;  /* Darker NYU Purple */
-        color: #ffffff;
+        background-color: #005F73;
     }
 
     /* Chat Message Box */
@@ -59,50 +59,44 @@ st.markdown("""
         border-radius: 8px;
         margin-bottom: 10px;
         font-size: 16px;
+        color: #000000 !important; /* Force all chat text to black */
     }
 
-    /* User Message Styling */
+    /* User Message */
     .user-message {
-        background-color: #f0e6f9;  /* Soft lavender */
-        color: #222222;  /* Black text */
+        background-color: #0077cc;
+        color: white !important;
         text-align: right;
-        padding: 10px;
-        border-radius: 8px;
     }
 
-    /* Bot (AI) Message Styling */
+    /* Bot Message */
     .bot-message {
-        background-color: #e0e0e0;  /* Light gray */
-        color: #222222;
+        background-color: #e0e0e0;
+        color: #000000 !important;
         text-align: left;
-        padding: 10px;
-        border-radius: 8px;
     }
 
-    /* Improve Visibility of Markdown Text */
-    .stMarkdown {
-        color: #222222 !important;  /* Ensures deep black text */
+    /* Ensure Visibility of All Messages */
+    .stMarkdown, .stCaption, .stError, .stWarning, .stSuccess, .stException {
+        color: #000000 !important; 
     }
 
-    /* Ensure Captions Are Visible */
-    .stCaption {
-        color: #555555 !important;  /* Dark gray */
-    }
-
-    /* Tabs Styling */
-    div[data-baseweb="tab-list"] button {
-        font-size: 18px !important;
+    /* API Error Message Pop-Ups */
+    div[data-testid="stNotification"], div[data-testid="stAlert"] {
+        background-color: #ffcccc !important;  /* Light pink for error pop-ups */
+        color: #000000 !important;  /* Black text for errors */
         font-weight: bold !important;
-        color: #222222 !important;
-        background-color: #ffffff !important;
-        border-bottom: 3px solid #57068c !important;
-        padding: 12px 20px;
+        border: 2px solid #FF0000 !important;  /* Red border for clarity */
+        padding: 10px !important;
+        border-radius: 8px !important;
     }
 
-    div[data-baseweb="tab-list"] button[aria-selected="true"] {
-        background-color: #f0e6f9 !important;  /* Soft lavender for selected tab */
-        color: #222222 !important;
-        font-weight: bold;
+    /* Tabs */
+    div[data-baseweb="tab-list"] button {
+        font-size: 20px !important; 
+        font-weight: bold !important;
+        padding: 10px 15px;
+        color: #000000 !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -112,7 +106,7 @@ st.markdown("<h1 style='text-align: center; color: #008CBA;'>💬 Transplant Inf
 st.write("---")
 
 # API URL - for railway deployment
-API_URL = "web-production-7c3ab.up.railway.app"
+API_URL = "https://transplant-infections-app-production.up.railway.app/query/"
 
 # Initialize chat history in session state
 if "chat_history" not in st.session_state:

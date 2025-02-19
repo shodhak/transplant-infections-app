@@ -113,7 +113,7 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
 # Default query text
-default_query = "Which viruses are important in xenotransplantation?"
+default_query = ""
 
 # Initialize session state for query input
 if "query" not in st.session_state:

@@ -1,28 +1,36 @@
 import os
 import fitz  # PyMuPDF
 import numpy as np
-import camelot
 import openai
 import pandas as pd
 from pydantic import BaseModel
-from fastapi import FastAPI, Query
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_community.vectorstores import FAISS
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+from fastapi import FastAPI
 from starlette.responses import JSONResponse
 from typing import List, Optional
+import faiss
+from sentence_transformers import SentenceTransformer
 
 # FastAPI initialization
 app = FastAPI()
-embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
 vector_store = None
 pdf_path = "merged_papers.pdf"
 FAISS_INDEX_PATH = "faiss_index"
 
-# Load OpenAI API Key
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-if not OPENAI_API_KEY:
-    print("⚠️ Warning: OpenAI API Key is missing")
+# Simple text splitter function
+def split_text(text, chunk_size=1500, overlap=100):
+    """Split text into chunks"""
+    chunks = []
+    start = 0
+    text_len = len(text)
+    
+    while start < text_len:
+        end = start + chunk_size
+        chunk = text[start:end]
+        chunks.append(chunk)
+        start = end - overlap
+    
+    return chunks
 
 def extract_content_from_pdf():
     """Extract text from PDF file."""
@@ -42,30 +50,54 @@ def extract_content_from_pdf():
     return {"raw_text": full_text, "tables": []}
 
 def create_faiss_index(data):
-    """Create FAISS vector index."""
+    """Create FAISS vector index without LangChain."""
     global vector_store
     
-    combined_text = data["raw_text"]
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1500, chunk_overlap=100)
-    texts = text_splitter.split_text(combined_text)
-    
+    # Split text into chunks
+    texts = split_text(data["raw_text"])
     print(f"Total chunks created: {len(texts)}")
     
-    try:
-        vector_store = FAISS.from_texts(texts, embeddings)
-        vector_store.save_local(FAISS_INDEX_PATH)
-        print("✅ FAISS index created successfully!")
-    except Exception as e:
-        print(f"❌ Error creating FAISS index: {e}")
+    # Create embeddings
+    embeddings = model.encode(texts)
+    
+    # Create FAISS index
+    dimension = embeddings.shape[1]
+    index = faiss.IndexFlatL2(dimension)
+    index.add(embeddings.astype('float32'))
+    
+    # Store the index and texts
+    vector_store = {
+        'index': index,
+        'texts': texts
+    }
+    
+    # Save index
+    faiss.write_index(index, f"{FAISS_INDEX_PATH}.index")
+    # Save texts
+    import pickle
+    with open(f"{FAISS_INDEX_PATH}.pkl", 'wb') as f:
+        pickle.dump(texts, f)
+    
+    print("✅ FAISS index created successfully!")
 
 def load_document():
     """Load FAISS index if available."""
     global vector_store
     
-    if os.path.exists(FAISS_INDEX_PATH):
+    if os.path.exists(f"{FAISS_INDEX_PATH}.index"):
         print("🔄 Loading existing FAISS index...")
         try:
-            vector_store = FAISS.load_local(FAISS_INDEX_PATH, embeddings, allow_dangerous_deserialization=True)
+            # Load index
+            index = faiss.read_index(f"{FAISS_INDEX_PATH}.index")
+            # Load texts
+            import pickle
+            with open(f"{FAISS_INDEX_PATH}.pkl", 'rb') as f:
+                texts = pickle.load(f)
+            
+            vector_store = {
+                'index': index,
+                'texts': texts
+            }
             print("✅ FAISS index loaded successfully!")
             return
         except Exception as e:
@@ -82,6 +114,7 @@ class ChatRequest(BaseModel):
 
 def query_openai(context, query):
     """Query OpenAI GPT-4o."""
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
     if not OPENAI_API_KEY:
         return "Error: OpenAI API key is missing."
     
@@ -116,7 +149,7 @@ def health_check():
     return {
         "status": "healthy",
         "vector_store_loaded": vector_store is not None,
-        "openai_key_set": bool(OPENAI_API_KEY)
+        "openai_key_set": bool(os.getenv("OPENAI_API_KEY"))
     }
 
 @app.post("/chat/")
@@ -130,11 +163,14 @@ def query_api_post(chat_request: ChatRequest):
             if vector_store is None:
                 return JSONResponse(content={"error": "FAISS index not loaded"}, status_code=500)
         
-        docs = vector_store.similarity_search(chat_request.query, k=3)
-        if not docs:
-            return JSONResponse(content={"answer": "No relevant documents found."})
+        # Search similar texts
+        query_embedding = model.encode([chat_request.query])
+        D, I = vector_store['index'].search(query_embedding.astype('float32'), k=3)
         
-        context = "\n".join([doc.page_content for doc in docs])
+        # Get relevant texts
+        relevant_texts = [vector_store['texts'][i] for i in I[0]]
+        context = "\n".join(relevant_texts)
+        
         answer = query_openai(context, chat_request.query)
         
         return JSONResponse(content={"answer": answer})
@@ -142,7 +178,7 @@ def query_api_post(chat_request: ChatRequest):
         print(f"❌ Error: {e}")
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
-# Try to load on startup but don't fail if it doesn't work
+# Try to load on startup
 try:
     load_document()
 except Exception as e:

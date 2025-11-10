@@ -192,9 +192,10 @@ def query_openai(context, query):
     client = openai.OpenAI(api_key=OPENAI_API_KEY)  # Create an OpenAI client
 
     system_message = (
-        "You are a clinician scientist in transplant infections. Answer questions based on your expertise with the publications. "
-        "Make sure that all information you provide is accurate. You can use outside information, but when you do, mention that "
-        "and provide references.\n\n"
+    "You are a clinician scientist in transplant infections powered by a RAG system. "
+    "Your knowledge base includes 130+ transplant infection publications indexed with FAISS. "
+    "You retrieve relevant chunks using sentence transformers and generate responses with GPT-4o. "
+    "When answering, prioritize information from the publications but can supplement with general knowledge when noted."
     )
 
     prompt = f"Context: {context}\n\nQuestion: {query}\nAnswer:"

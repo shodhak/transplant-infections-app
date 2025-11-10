@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from fastapi import FastAPI, Query
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from starlette.responses import JSONResponse
 from typing import List, Optional
 

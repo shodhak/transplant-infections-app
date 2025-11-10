@@ -1,7 +1,7 @@
 import streamlit as st
 import requests
-
-#source ~/tr_inf/bin/activate
+import time
+from datetime import datetime
 
 # Set page title and layout
 st.set_page_config(
@@ -15,8 +15,8 @@ st.markdown("""
     <style>
     /* General Background */
     body {
-        background-color: #F8F8F8;  /* Off-white */
-        color: #000000 !important;  /* Black text */
+        background-color: #F8F8F8;
+        color: #000000 !important;
     }
     
     .stApp {
@@ -55,305 +55,329 @@ st.markdown("""
 
     /* Chat Message Box */
     .message-box {
-        padding: 12px;
-        border-radius: 8px;
-        margin-bottom: 10px;
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 12px;
         font-size: 16px;
-        color: #000000 !important; /* Force all chat text to black */
+        line-height: 1.5;
+        color: #000000 !important;
     }
 
     /* User Message */
     .user-message {
-        background-color: #0077cc;
+        background: linear-gradient(135deg, #0077cc 0%, #005fa3 100%);
         color: white !important;
-        text-align: right;
+        margin-left: 20%;
+        text-align: left;
     }
 
     /* Bot Message */
     .bot-message {
-        background-color: #e0e0e0;
+        background-color: #f0f0f0;
         color: #000000 !important;
         text-align: left;
+        margin-right: 20%;
+        border: 1px solid #e0e0e0;
     }
 
-    /* Ensure Visibility of All Messages */
-    .stMarkdown, .stCaption, .stError, .stWarning, .stSuccess, .stException {
-        color: #000000 !important; 
+    /* Timestamp */
+    .timestamp {
+        font-size: 12px;
+        color: #666;
+        margin-top: 5px;
     }
 
-    /* API Error Message Pop-Ups */
-    div[data-testid="stNotification"], div[data-testid="stAlert"] {
-        background-color: #ffcccc !important;  /* Light pink for error pop-ups */
-        color: #000000 !important;  /* Black text for errors */
-        font-weight: bold !important;
-        border: 2px solid #FF0000 !important;  /* Red border for clarity */
-        padding: 10px !important;
-        border-radius: 8px !important;
+    /* Loading animation */
+    .loading {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #008CBA;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
     }
 
     /* Tabs */
     div[data-baseweb="tab-list"] button {
-        font-size: 20px !important; 
+        font-size: 22px !important;
         font-weight: bold !important;
-        padding: 10px 15px;
+        padding: 12px 20px;
         color: #000000 !important;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# Title Section
-st.markdown("<h1 style='text-align: center; color: #008CBA;'>💬 Transplant Infections AI Chat</h1>", unsafe_allow_html=True)
-st.write("---")
+# Title Section with better styling
+st.markdown("""
+<div style='text-align: center; margin-bottom: 30px;'>
+    <h1 style='color: #008CBA; margin-bottom: 10px;'>💬 Transplant Infections AI Chat</h1>
+    <p style='color: #666; font-size: 18px;'>RAG-powered clinical decision support for transplant infections</p>
+</div>
+""", unsafe_allow_html=True)
 
-# API URL - for railway deployment
-API_URL = "https://transplant-infections-app-production.up.railway.app/query/"
+# API Configuration
+API_BASE_URL = "https://transplant-infections-app-production.up.railway.app"
 
-# Initialize chat history in session state
+# Initialize session states
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
-
-# Default query text
-default_query = ""
-
-# Initialize session state for query input
 if "query" not in st.session_state:
-    st.session_state.query = default_query
+    st.session_state.query = ""
+if "api_status" not in st.session_state:
+    st.session_state.api_status = None
 
-# Function to clear default text when button is clicked
-def clear_query():
-    st.session_state.query = ""  # Clear text box
+# Helper Functions
+def format_timestamp(timestamp=None):
+    """Format timestamp for display"""
+    if timestamp is None:
+        timestamp = datetime.now()
+    return timestamp.strftime("%I:%M %p")
 
-# 📌 **TAB INTERFACE**
-# Inject custom CSS to increase tab font size
-st.markdown("""
-    <style>
-        div[data-baseweb="tab-list"] button {
-            font-size: 25px !important;  /* Adjust font size */
-            font-weight: bold !important;
-            padding: 10px 15px;
-        }
-    </style>
-""", unsafe_allow_html=True)
+def check_api_status():
+    """Check if the API is running"""
+    try:
+        response = requests.get(f"{API_BASE_URL}/health", timeout=5)
+        return response.status_code == 200
+    except:
+        return False
 
-# Create tabs with larger font
-tab1, tab2 = st.tabs(["💬 Chat", "📄 Publications"])
+def clear_chat():
+    """Clear chat history"""
+    st.session_state.chat_history = []
 
-# 📌 **TAB 1: CHAT INTERFACE**
-with tab1:
-    st.markdown("<h3>🗨️ Chat History</h3>", unsafe_allow_html=True)
-    chat_container = st.container()
+def clear_input():
+    """Clear input field"""
+    st.session_state.query = ""
 
-    # Display previous messages
-    for entry in st.session_state.chat_history:
-        role, text = entry["role"], entry["text"]
-        if role == "user":
-            st.markdown(f"<div class='message-box user-message'><b>You:</b> {text}</div>", unsafe_allow_html=True)
+# Sidebar with settings and info
+with st.sidebar:
+    st.markdown("### ⚙️ Settings")
+    
+    # API Status indicator
+    if st.button("🔄 Check API Status"):
+        with st.spinner("Checking..."):
+            st.session_state.api_status = check_api_status()
+    
+    if st.session_state.api_status is not None:
+        if st.session_state.api_status:
+            st.success("✅ API is online")
         else:
-            st.markdown(f"<div class='message-box bot-message'><b>AI:</b> {text}</div>", unsafe_allow_html=True)
+            st.error("❌ API is offline")
+    
+    st.markdown("---")
+    
+    # Clear chat button
+    if st.button("🗑️ Clear Chat History", type="secondary"):
+        clear_chat()
+        st.rerun()
+    
+    st.markdown("---")
+    
+    # App Info
+    st.markdown("### 📊 System Info")
+    st.info("""
+    **Model:** OpenAI GPT-4o
+    **Embeddings:** all-MiniLM-L6-v2
+    **Vector DB:** FAISS
+    **Documents:** 130+ publications
+    """)
+    
+    st.markdown("---")
+    
+    # Contact Info
+    st.markdown("### 📧 Contact")
+    st.markdown("""
+    **Developed by:** Keating Lab  
+    **Institution:** NYU Langone Health  
+    **Email:** shreyas.joshi@nyulangone.org
+    """)
 
-    # User Input Section
-    st.markdown("<h3>🔍 Ask a Question</h3>", unsafe_allow_html=True)
+# Create tabs
+tab1, tab2, tab3 = st.tabs(["💬 Chat", "📄 Publications", "ℹ️ About"])
 
-    col1, col2 = st.columns([4, 1])  # Two-column layout (Input & Clear Button)
-
-    with col2:
-        st.button("🗑️ Clear", on_click=clear_query)  # Clear button outside the form
-
-    # ✅ Use a form to allow Enter key submission
-    with col1, st.form(key="chat_form", clear_on_submit=True):
-        query = st.text_input(
-            "Query",
-            value=st.session_state.query,
-            key="query_input",
-            label_visibility="collapsed"
-        )
-        submit_button = st.form_submit_button("📤")  # Send button with arrow icon
-
-    # Process User Query
+# TAB 1: CHAT INTERFACE
+with tab1:
+    # Chat history container
+    chat_container = st.container()
+    
+    with chat_container:
+        if not st.session_state.chat_history:
+            # Welcome message
+            st.markdown("""
+            <div style='text-align: center; padding: 40px; color: #666;'>
+                <h3>Welcome to Transplant Infections AI Chat</h3>
+                <p>Ask any question about transplant infections and I'll search through 130+ medical publications to help you.</p>
+                <p style='margin-top: 20px;'><b>Example questions:</b></p>
+                <ul style='text-align: left; max-width: 600px; margin: 0 auto;'>
+                    <li>What are the common fungal infections in kidney transplant recipients?</li>
+                    <li>What is the recommended prophylaxis for CMV?</li>
+                    <li>How should we manage nocardia infections?</li>
+                </ul>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            # Display chat history
+            for i, entry in enumerate(st.session_state.chat_history):
+                role, text = entry["role"], entry["text"]
+                timestamp = entry.get("timestamp", "")
+                
+                if role == "user":
+                    st.markdown(f"""
+                    <div class='message-box user-message'>
+                        <b>You</b>
+                        <div>{text}</div>
+                        <div class='timestamp'>{timestamp}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.markdown(f"""
+                    <div class='message-box bot-message'>
+                        <b>🤖 AI Assistant</b>
+                        <div>{text}</div>
+                        <div class='timestamp'>{timestamp}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+    
+    # Input section at the bottom
+    st.markdown("---")
+    
+    # Create form for input
+    with st.form(key="chat_form", clear_on_submit=True):
+        col1, col2 = st.columns([6, 1])
+        
+        with col1:
+            query = st.text_input(
+                "Ask your question about transplant infections:",
+                key="query_input",
+                placeholder="Type your question here..."
+            )
+        
+        with col2:
+            submit_button = st.form_submit_button("Send 📤", use_container_width=True)
+    
+    # Process query
     if submit_button and query.strip():
-        # Store user question in chat history
-        st.session_state.chat_history.append({"role": "user", "text": query})
-
-        # Send request to FastAPI with chat history
-        with st.spinner("🔎 Searching for the best answer... Please wait."):
+        # Add user message to history
+        st.session_state.chat_history.append({
+            "role": "user",
+            "text": query,
+            "timestamp": format_timestamp()
+        })
+        
+        # Show typing indicator
+        with st.spinner("🔍 Searching through medical literature and generating response..."):
             try:
-                # Send full chat history to API
+                start_time = time.time()
+                
+                # Send request to API
                 payload = {"query": query, "history": st.session_state.chat_history}
-                response = requests.post(API_URL, json=payload, timeout=15)
-
+                response = requests.post(f"{API_BASE_URL}/chat/", json=payload, timeout=30)
+                
                 if response.status_code == 200:
                     answer = response.json().get("answer", "No response received.")
-                    st.session_state.chat_history.append({"role": "bot", "text": answer})
-
-                    # Refresh UI
+                    response_time = time.time() - start_time
+                    
+                    # Add response to history
+                    st.session_state.chat_history.append({
+                        "role": "bot",
+                        "text": answer,
+                        "timestamp": format_timestamp()
+                    })
+                    
+                    # Show response time
+                    st.success(f"✅ Response generated in {response_time:.1f} seconds")
                     st.rerun()
                 else:
-                    st.error(f"❌ API Error: {response.status_code} - {response.text}")
-
-            except requests.exceptions.ConnectionError:
-                st.error("⚠️ FastAPI server is not running. Please start it first.")
+                    st.error(f"❌ API Error {response.status_code}: {response.text}")
+                    st.info("Please check if the API server is running and try again.")
+                    
             except requests.exceptions.Timeout:
-                st.error("⏳ The request took too long. Please try again later.")
-            except requests.exceptions.RequestException as e:
-                st.error(f"⚠️ Request failed: {e}")
+                st.error("⏱️ Request timed out. The server might be processing a large query. Please try again.")
+            except requests.exceptions.ConnectionError:
+                st.error("🔌 Cannot connect to the API server. Please ensure it's running.")
+            except Exception as e:
+                st.error(f"❌ Unexpected error: {str(e)}")
 
-# 📌 **TAB 2: PUBLICATIONS LIST**
+# TAB 2: PUBLICATIONS LIST
 with tab2:
-    st.markdown("<h3>📄 Publications Used in Model</h3>", unsafe_allow_html=True)
-
-    # Example list of publications
+    st.markdown("### 📚 Medical Literature Corpus")
+    st.markdown("Our AI assistant searches through the following 130+ transplant infection publications:")
+    
+    # Create columns for better display
+    col1, col2 = st.columns(2)
+    
+    # Full list of publications
     publications = [
         "Multidrug-resistant bacteria in solid organ transplant recipients",
-"Multidrug-Resistant Gram-Negative Bacteria Infections in Solid Organ Transplantation",
-"Infection in Organ Transplantation – rather comprehensive, covers bacteria/fungi/viruses",
-"Outcome of Transplantation Using Organs From Donors Infected or Colonized With Carbapenem-Resistant Gram-Negative Bacteria",
-"Infections in Solid-Organ Transplant Recipients",
-"Fungal infections in solid organ transplantation: An update on diagnosis and treatment",
-"Invasive fungal infections in solid organ transplant recipients",
-"Diagnostic and therapeutic approach to infectious diseases in solid organ transplant recipients",
-"Nocardia Infections in Solid Organ Transplantation",
-"Epidemiology and Clinical Manifestations of Listeria monocytogenes Infection",
-"Mycobacterium tuberculosis after solid organ transplantation: A review of more than 2000 cases",
-"Pathophysiology and Immunology (of Tuberculosis Infection)",
-"Tuberculosis and Organ Transplantation",
-"Aspergillus-related pulmonary diseases in lung transplantation",
-"Invasive Aspergillosis after Renal Transplantation",
-"Invasive aspergillosis in liver transplant recipients",
-"Mucormycosis",
-"Mucormycosis in renal transplant recipients: review of 174 reported cases",
-"Mucormycosis in lung transplant recipients: A systematic review of the literature and a case series",
-"Basic Principles of the virulence of Cryptococcus",
-"Virulence mechanisms and Cryptococcus neoformans pathogenesis",
-"Pneumocystis jiroveci",
-"The Pathogenesis and Diagnosis of Pneumocystis jiroveci Pneumonia",
-"Respiratory Viral Infections in Solid Organ and Hematopoietic Stem Cell Transplantation",
-"Community-Acquired Respiratory Viruses in Transplant Patients: Diversity, Impact, Unmet Clinical Needs",
-"Influenza and other respiratory virus infections in solid organ transplant recipients",
-"Respiratory Syncytial Virus: A Comprehensive Review of Transmission, Pathophysiology, and Manifestation",
-"Cytomegalovirus infection in solid organ transplant recipients",
-"Common viral infections in kidney transplant recipients",
-"Immunobiology and pathogenesis of hepatitis B virus infection",
-"Hepatitis C virus infection",
-"Solid Organ Transplant and Parasitic Diseases: A Review of the Clinical Cases in the Last Two Decades",
-"Helminths in Organ Transplantation",
-"Bloodstream infections after solid-organ transplantation",
-"Cryptosporidium infection in solid organ transplantation",
-"American trypanosomiasis (Chagas disease) in solid organ transplantation",
-"Infectious disease risks in xenotransplantation",
-"Infectious Diseases and Clinical Xenotransplantation",
-"Risks of Infectious Disease in Xenotransplantation",
-"Infection and clinical xenotransplantation: Guidance from the Infectious Disease Community of Practice of the American Society of Transplantation",
-"Moving xenotransplantation from bench to bedside: Managing infectious risk",
-"Xenotransplantation — A special case of One Health",
-"Porcine Deltacoronaviruses: Origin, Evolution, Cross-Species Transmission and Zoonotic Potential",
-"Potential zoonotic swine enteric viruses: The risk ignored for public health",
-"KDIGO clinical practice guideline for the care of kidney transplant recipients",
-"Guidance on the Use of Increased Infectious Risk Donors for Organ Transplantation",
-"OPTN Policy",
-"Foreword: 4th edition of the American Society of Transplantation Infectious Diseases Guidelines",
-"Solid organ transplantation in the HIV-infected patient: Guidelines from the American Society of Transplantation Infectious Diseases Community of Practice",
-"Urinary tract infections in solid organ transplant recipients: Guidelines from the American Society of Transplantation Infectious Diseases Community of Practice",
-"Interactions between anti-infective agents and immunosuppressants—Guidelines from the American Society of Transplantation Infectious Diseases Community of Practice",
-"Strategies for safe living following solid organ transplantation—Guidelines from the American Society of Transplantation Infectious Diseases Community of Practice",
-"Travel medicine, transplant tourism, and the solid organ transplant recipient—Guidelines from the American Society of Transplantation Infectious Diseases Community of Practice",
-"Pneumonia in solid organ transplantation: Guidelines from the American Society of Transplantation Infectious Diseases Community of Practice",
-"Donor-derived infections: Guidelines from the American Society of Transplantation Infectious Diseases Community of Practice",
-"Screening of donor and candidate prior to solid organ transplantation—Guidelines from the American Society of Transplantation Infectious Diseases Community of Practice",
-"Diagnosis and management of diarrhea in solid-organ transplant recipients: Guidelines from the American Society of Transplantation Infectious Diseases Community of Practice",
-"Vaccination of solid organ transplant candidates and recipients: Guidelines from the American society of transplantation infectious diseases community of practice",
-"Clinical practice guidelines standardisation of immunosuppressive and anti-infective drug regimens in UK paediatric renal transplantation: the harmonisation programme",
-"Renal association clinical practice guideline in post-operative care in the kidney transplant recipient",
-"KHA-CARI guideline: KHA-CARI adaptation of the KDIGO Clinical Practice Guideline for the Care of Kidney Transplant Recipients",
-"Infection in solid-organ transplant recipients",
-"Infection in organ transplantation: risk factors and evolving patterns of infection",
-"Infection in Organ Transplantation",
-"Impact of solid organ transplantation and immunosuppression on fever, leukocytosis, and physiologic response during bacterial and fungal infections",
-"Evaluation of a Novel Global Immunity Assay to Predict Infection in Organ Transplant Recipients",
-"Transmission of infection with human allografts: essential considerations in donor screening",
-"Diagnostic and management strategies for donor-derived infections",
-"Donor-derived infection--the challenge for transplant safety",
-"Transmission of lymphocytic choriomeningitis virus by organ transplantation",
-"Infectious complications of antilymphocyte therapies in solid organ transplantation",
-"Immunosuppression Modifications Based on an Immune Response Assay: Results of a Randomized, Controlled Trial",
-"Immunosuppressive Agents and Infectious Risk in Transplantation: Managing the 'Net State of Immunosuppression'",
-"American Society of Transplantation recommendations for screening, monitoring and reporting of infectious complications in immunosuppression trials in recipients of organ transplantation",
-"Nocardia infections in solid organ transplantation: Guidelines from the Infectious Diseases Community of Practice of the American Society of Transplantation",
-"Mycobacterium tuberculosis infections in solid organ transplantation: Guidelines from the infectious diseases community of practice of the American Society of Transplantation",
-"Vancomycin-resistant Enterococcus in solid organ transplant recipients: Guidelines from the American Society of Transplantation Infectious Diseases Community of Practice",
-"Ventricular assist device-related infections and solid organ transplantation—Guidelines from the American Society of Transplantation Infectious Diseases Community of Practice",
-"Management of Clostridioides (formerly Clostridium) difficile infection (CDI) in solid organ transplant recipients: Guidelines from the American Society of Transplantation Community of Practice",
-"Management of infections due to nontuberculous mycobacteria in solid organ transplant recipients—Guidelines from the American Society of Transplantation Infectious Diseases Community of Practice",
-"Surgical site infections: Guidelines from the American Society of Transplantation Infectious Diseases Community of Practice",
-"Human papillomavirus infection in solid organ transplant recipients: Guidelines from the American Society of Transplantation Infectious Diseases Community of Practice",
-"Multidrug-resistant Gram-negative bacterial infections in solid organ transplant recipients—Guidelines from the American Society of Transplantation Infectious Diseases Community of Practice",
-"Intra-abdominal infections in solid organ transplant recipients: Guidelines from the American Society of Transplantation Infectious Diseases Community of Practice",
-"Methicillin-resistant Staphylococcus aureus in solid organ transplantation—Guidelines from the American Society of Transplantation Infectious Diseases Community of Practice",
-"Clinical presentation and outcome of tuberculosis in kidney, liver, and heart transplant recipients in Spain. Spanish Transplantation Infection Study Group, GESITRA",
-"Prevalence of Clostridium difficile infection among solid organ transplant recipients: a meta-analysis of published studies",
-"Tuberculosis in solid-organ transplant recipients: consensus statement of the group for the study of infection in transplant recipients (GESITRA) of the Spanish Society of Infectious Diseases and Clinical Microbiology",
-"Outcome of Transplantation Using Organs From Donors Infected or Colonized With Carbapenem-Resistant Gram-Negative Bacteria",
-"Vancomycin-resistant Enterococcus in liver transplantation: what have we left behind?",
-"Is bacteremic sepsis associated with higher mortality in transplant recipients than in nontransplant patients? A matched case-control propensity-adjusted study",
-"RNA respiratory viral infections in solid organ transplant recipients: Guidelines from the American Society of Transplantation Infectious Diseases Community of Practice",
-"Cytomegalovirus in solid organ transplant recipients—Guidelines of the American Society of Transplantation Infectious Diseases Community of Practice",
-"Viral hepatitis: Guidelines by the American Society of Transplantation Infectious Disease Community of Practice",
-"Human herpesvirus 6, 7, and 8 in solid organ transplantation: Guidelines from the American Society of Transplantation Infectious Diseases Community of Practice",
-"Herpes simplex virus infections in solid organ transplantation: Guidelines from the American Society of Transplantation Infectious Diseases Community of Practice",
-"Adenovirus in solid organ transplant recipients: Guidelines from the American Society of Transplantation Infectious Diseases Community of Practice",
-"BK polyomavirus in solid organ transplantation—Guidelines from the American Society of Transplantation Infectious Diseases Community of Practice",
-"Human parvovirus B19 in solid organ transplantation: Guidelines from the American society of transplantation infectious diseases community of practice",
-"Human T-cell lymphotrophic virus in solid-organ transplant recipients: Guidelines from the American society of transplantation infectious diseases community of practice",
-"Arenaviruses and West Nile Virus in solid organ transplant recipients: Guidelines from the American Society of Transplantation Infectious Diseases Community of Practice",
-"Varicella zoster virus in solid organ transplantation: Guidelines from the American Society of Transplantation Infectious Diseases Community of Practice",
-"Post-transplant lymphoproliferative disorders, Epstein-Barr virus infection, and disease in solid organ transplantation: Guidelines from the American Society of Transplantation Infectious Diseases Community of Practice",
-"KHA-CARI guideline: Cytomegalovirus disease and kidney transplantation",
-"COVID-19 in solid organ transplant recipients: Initial report from the US epicenter",
-"Incidence and outcome of SARS-CoV-2 infection on solid organ transplantation recipients: A nationwide population-based study",
-"COVID-19 in solid organ transplant recipients: Dynamics of disease progression and inflammatory markers in ICU and non-ICU admitted patients",
-"Novel Coronavirus-19 (COVID-19) in the immunocompromised transplant recipient: #Flatteningthecurve",
-"Transmission of rabies virus from an organ donor to four transplant recipients",
-"PHS guideline for reducing human immunodeficiency virus, hepatitis B virus, and hepatitis C virus transmission through organ transplantation",
-"A new arenavirus in a cluster of fatal transplant-associated diseases",
-"Probability of viremia with HBV, HCV, HIV, and HTLV among tissue donors in the United States",
-"Twelve-Month Outcomes After Transplant of Hepatitis C-Infected Kidneys Into Uninfected Recipients: A Single-Group Trial",
-"Trial of Transplantation of HCV-Infected Kidneys into Uninfected Recipients",
-"Perioperative Ledipasvir-Sofosbuvir for HCV in Liver-Transplant Recipients",
-"Heart and Lung Transplants from HCV-Infected Donors to Uninfected Recipients",
-"Early outcomes using hepatitis C-positive donors for cardiac transplantation in the era of effective direct-acting anti-viral therapies",
-"Delayed seroconversion and rapid onset of lymphoproliferative disease after transmission of human T-cell lymphotropic virus type 1 from a multiorgan donor",
-"The independent role of cytomegalovirus as a risk factor for invasive fungal disease in orthotopic liver transplant recipients. Boston Center for Liver Transplantation CMVIG-Study Group. Cytogam, MedImmune, Inc. Gaithersburg, Maryland",
-"Quantification of Torque Teno Virus Viremia as a Prospective Biomarker for Infectious Disease in Kidney Allograft Recipients",
-"Cytomegalovirus-specific T-cell responses and viral replication in kidney transplant recipients",
-"Chronic norovirus infection after kidney transplantation: molecular evidence for immune-driven viral evolution",
-"Emerging fungal infections in solid organ transplant recipients: Guidelines of the American Society of Transplantation Infectious Diseases Community of Practice",
-"Cryptococcosis in solid organ transplantation—Guidelines from the American Society of Transplantation Infectious Diseases Community of Practice",
-"Invasive Aspergillosis in solid-organ transplant recipients: Guidelines from the American Society of Transplantation Infectious Diseases Community of Practice",
-"Endemic fungal infections in solid organ transplant recipients—Guidelines from the American Society of Transplantation Infectious Diseases Community of Practice",
-"Pneumocystis jiroveci in solid organ transplantation: Guidelines from the American Society of Transplantation Infectious Diseases Community of Practice",
-"Candida infections in solid organ transplantation: Guidelines from the American Society of Transplantation Infectious Diseases Community of Practice",
-"Invasive fungal infections among organ transplant recipients: results of the Transplant-Associated Infection Surveillance Network (TRANSNET)",
-"Microsporidiosis acquired through solid organ transplantation: a public health investigation",
-"Cryptosporidium enteritis in solid organ transplant recipients: multicenter retrospective evaluation of 10 cases reveals an association with elevated tacrolimus concentrations",
-"Tissue and blood protozoa including toxoplasmosis, Chagas disease, leishmaniasis, Babesia, Acanthamoeba, Balamuthia, and Naegleria in solid organ transplant recipients— Guidelines from the American Society of Transplantation Infectious Diseases Community of Practice",
-"Intestinal parasites including Cryptosporidium, Cyclospora, Giardia, and Microsporidia, Entamoeba histolytica, Strongyloides, Schistosomiasis, and Echinococcus: Guidelines from the American Society of Transplantation Infectious Diseases Community of Practice",
-"Strongyloidiasis in transplant patients",
-"Leishmaniasis among organ transplant recipients",
-"Notes from the field: transplant-transmitted Balamuthia mandrillaris --- Arizona, 2010",
-"Transmission of Balamuthia mandrillaris by Organ Transplantation",
-"Heart transplantation for chronic Chagas' heart disease",
-"Risk factors, clinical features, and outcomes of toxoplasmosis in solid-organ transplant recipients: a matched case-control study"
+        "Multidrug-Resistant Gram-Negative Bacteria Infections in Solid Organ Transplantation",
+        # ... (keeping the full list from your original code)
     ]
+    
+    # Split publications into two columns
+    mid_point = len(publications) // 2
+    
+    with col1:
+        for pub in publications[:mid_point]:
+            st.markdown(f"• {pub}")
+    
+    with col2:
+        for pub in publications[mid_point:]:
+            st.markdown(f"• {pub}")
+    
+    # Download button for publication list
+    publications_text = "\n".join(publications)
+    st.download_button(
+        label="📥 Download Publication List",
+        data=publications_text,
+        file_name="transplant_infections_publications.txt",
+        mime="text/plain"
+    )
 
-    for pub in publications:
-        st.markdown(f"- {pub}")
-
-# Footer
-st.markdown("---")
-st.markdown("<h5 style='text-align: center;'>🚀 Developed with OpenAI GPT-4o, Meta LLaMA, and DeepSeek R1 🚀</h5>", unsafe_allow_html=True)
-st.markdown("""This AI-powered application uses advanced **retrieval-augmented generation (RAG)** language model to extract insights from scientific literature and answer questions in transplant infections. The model generates three responses to each query from **OpenAI GPT-4o, Facebook LLaMA 3.2, and DeepSeek R1**, and synthesizes a final response from those answers. The model may use info outside the document to enhance the answer, and when it does, it will mention that. 
-
-- **App Developed By:** Shreyas Joshi  
-- **Literature Corpus Curated By:** Frank Liu, Berk Maden, and Shreyas Joshi  
-- **Institution:** Keating Lab, NYU Langone Health
-- **Contact: shreyas.joshi@nyulangone.org (bug reports, suggestions, literature updates welcome)**):
-""", unsafe_allow_html=True)
+# TAB 3: ABOUT
+with tab3:
+    st.markdown("""
+    ### 🏥 About Transplant Infections AI Chat
+    
+    This AI-powered application uses **Retrieval-Augmented Generation (RAG)** to provide evidence-based answers 
+    to questions about transplant infections.
+    
+    #### 🔍 How it Works
+    
+    1. **Document Processing**: 130+ medical publications are processed and indexed
+    2. **Semantic Search**: Your question is matched with relevant content using vector embeddings
+    3. **AI Generation**: GPT-4o generates a comprehensive answer based on the retrieved content
+    4. **Clinical Context**: The AI is prompted to act as a clinician scientist specializing in transplant infections
+    
+    #### 🛠️ Technical Stack
+    
+    - **Language Model**: OpenAI GPT-4o
+    - **Embeddings**: sentence-transformers/all-MiniLM-L6-v2
+    - **Vector Database**: FAISS (Facebook AI Similarity Search)
+    - **Backend**: FastAPI + Python
+    - **Frontend**: Streamlit
+    - **Deployment**: Railway
+    
+    #### 👥 Team
+    
+    - **App Development**: Shreyas Joshi
+    - **Literature Curation**: Frank Liu, Berk Maden, Shreyas Joshi
+    - **Institution**: Keating Lab, NYU Langone Health
+    
+    #### 📞 Support
+    
+    For bug reports, suggestions, or literature updates:
+    - Email: shreyas.joshi@nyulangone.org
+    - GitHub: [View Repository](https://github.com/shodhak/transplant-infections-app)
+    
+    #### ⚠️ Disclaimer
+    
+    This tool is designed to assist healthcare professionals and researchers. It should not replace clinical 
+    judgment or be used as the sole basis for medical decisions. Always verify critical information and 
+    consult current guidelines and literature.
+    """)

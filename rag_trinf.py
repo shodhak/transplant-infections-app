@@ -15,7 +15,7 @@ app = FastAPI()
 model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
 vector_store = None
 pdf_path = "merged_papers.pdf"
-FAISS_INDEX_PATH = "faiss_index"
+FAISS_INDEX_PATH = "faiss_index/index"
 
 # Simple text splitter function
 def split_text(text, chunk_size=1500, overlap=100):
@@ -49,64 +49,56 @@ def extract_content_from_pdf():
     full_text = "\n".join(raw_text)
     return {"raw_text": full_text, "tables": []}
 
+FAISS_INDEX_PATH = "faiss_index/index"  # Update to new path
+
 def create_faiss_index(data):
-    """Create FAISS vector index without LangChain."""
     global vector_store
-    
-    # Split text into chunks
     texts = split_text(data["raw_text"])
     print(f"Total chunks created: {len(texts)}")
-    
-    # Create embeddings
     embeddings = model.encode(texts)
-    
-    # Create FAISS index
     dimension = embeddings.shape[1]
     index = faiss.IndexFlatL2(dimension)
     index.add(embeddings.astype('float32'))
-    
-    # Store the index and texts
-    vector_store = {
-        'index': index,
-        'texts': texts
-    }
-    
+    vector_store = {'index': index, 'texts': texts}
     # Save index
-    faiss.write_index(index, f"{FAISS_INDEX_PATH}.index")
-    # Save texts
+    faiss.write_index(index, f"{FAISS_INDEX_PATH}.faiss")
     import pickle
     with open(f"{FAISS_INDEX_PATH}.pkl", 'wb') as f:
         pickle.dump(texts, f)
-    
     print("✅ FAISS index created successfully!")
 
-def load_document():
-    """Load FAISS index if available."""
+def load_document(force_recreate=False):
     global vector_store
-    
-    if os.path.exists(f"{FAISS_INDEX_PATH}.index"):
+    index_exists = os.path.exists(f"{FAISS_INDEX_PATH}.faiss")
+    texts_exists = os.path.exists(f"{FAISS_INDEX_PATH}.pkl")
+    if index_exists and texts_exists and not force_recreate:
         print("🔄 Loading existing FAISS index...")
         try:
-            # Load index
-            index = faiss.read_index(f"{FAISS_INDEX_PATH}.index")
-            # Load texts
+            index = faiss.read_index(f"{FAISS_INDEX_PATH}.faiss")
             import pickle
             with open(f"{FAISS_INDEX_PATH}.pkl", 'rb') as f:
                 texts = pickle.load(f)
-            
-            vector_store = {
-                'index': index,
-                'texts': texts
-            }
+            if not texts or index.ntotal == 0:
+                print("❌ FAISS index or text chunks are empty. Rebuilding index...")
+                raise ValueError("Empty index or text chunks")
+            vector_store = {'index': index, 'texts': texts}
             print("✅ FAISS index loaded successfully!")
-            return
+            return True
         except Exception as e:
-            print(f"❌ Error loading FAISS index: {e}")
-    
-    print("⚠️ Processing the document...")
+            print(f"❌ Error loading FAISS index: {e}. Rebuilding index.")
+            if index_exists:
+                os.remove(f"{FAISS_INDEX_PATH}.faiss")
+            if texts_exists:
+                os.remove(f"{FAISS_INDEX_PATH}.pkl")
+    print("⚠️ Processing the document and building FAISS index...")
     extracted_data = extract_content_from_pdf()
     if extracted_data["raw_text"]:
         create_faiss_index(extracted_data)
+        return True
+    else:
+        print("❌ Could not process PDF or extract text.")
+        vector_store = None
+        return False
 
 class ChatRequest(BaseModel):
     query: str

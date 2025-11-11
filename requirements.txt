@@ -15,4 +15,3 @@ starlette
 pytesseract
 pdf2image
 Pillow
-

@@ -2,6 +2,7 @@
 venv/
 env/
 .tr_inf/
+rag_trinf/
 
 # Ignore Python cache files
 __pycache__/

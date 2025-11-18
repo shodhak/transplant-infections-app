@@ -1,5 +1,6 @@
 import streamlit as st
 import requests
+import os
 
 #source ~/tr_inf/bin/activate
 
@@ -105,8 +106,8 @@ st.markdown("""
 st.markdown("<h1 style='text-align: center; color: #008CBA;'>💬 Transplant Infections AI Chat</h1>", unsafe_allow_html=True)
 st.write("---")
 
-# API URL - for railway deployment
-API_URL = "https://transplant-infections-app-production.up.railway.app/query/"
+# API URL - automatically uses Railway URL in production, localhost for development
+API_URL = os.getenv("API_URL", "http://localhost:8000/query/")
 
 # Initialize chat history in session state
 if "chat_history" not in st.session_state:
@@ -150,6 +151,32 @@ with tab1:
             st.markdown(f"<div class='message-box user-message'><b>You:</b> {text}</div>", unsafe_allow_html=True)
         else:
             st.markdown(f"<div class='message-box bot-message'><b>AI:</b> {text}</div>", unsafe_allow_html=True)
+            
+            # Display sources if available
+            if "sources" in entry and entry["sources"]:
+                with st.expander(f"📚 View {len(entry['sources'])} Source(s)"):
+                    for source in entry["sources"]:
+                        st.markdown(f"### [Source {source['index']}]")
+                        
+                        # Display document name prominently
+                        if 'document_name' in source:
+                            st.markdown(f"**📄 Document:** {source['document_name']}")
+                        
+                        # Display chunk information
+                        if 'chunk_info' in source:
+                            st.caption(source['chunk_info'])
+                        
+                        # Show content preview in a scrollable box
+                        st.markdown("**Content Preview:**")
+                        st.text_area(
+                            f"Preview {source['index']}", 
+                            source['content_preview'], 
+                            height=150, 
+                            key=f"source_{id(entry)}_{source['index']}",
+                            disabled=True
+                        )
+                        
+                        st.markdown("---")
 
     # User Input Section
     st.markdown("<h3>🔍 Ask a Question</h3>", unsafe_allow_html=True)
@@ -179,11 +206,19 @@ with tab1:
             try:
                 # Send full chat history to API
                 payload = {"query": query, "history": st.session_state.chat_history}
-                response = requests.post(API_URL, json=payload, timeout=15)
+                response = requests.post(API_URL, json=payload, timeout=60)  # Increased to 60 seconds
 
                 if response.status_code == 200:
-                    answer = response.json().get("answer", "No response received.")
-                    st.session_state.chat_history.append({"role": "bot", "text": answer})
+                    result = response.json()
+                    answer = result.get("answer", "No response received.")
+                    sources = result.get("sources", [])
+                    
+                    # Store answer with sources
+                    st.session_state.chat_history.append({
+                        "role": "bot", 
+                        "text": answer,
+                        "sources": sources
+                    })
 
                     # Refresh UI
                     st.rerun()
@@ -349,7 +384,7 @@ with tab2:
 
 # Footer
 st.markdown("---")
-st.markdown("<h5 style='text-align: center;'>🚀 Developed with OpenAI GPT-4o, Meta LLaMA, and DeepSeek R1 🚀</h5>", unsafe_allow_html=True)
+st.markdown("<h5 style='text-align: center;'>🚀 Developed with OpenAI GPT-5, Meta LLaMA, and DeepSeek R1 🚀</h5>", unsafe_allow_html=True)
 st.markdown("""This AI-powered application uses advanced **retrieval-augmented generation (RAG)** language model to extract insights from scientific literature and answer questions in transplant infections. The model generates three responses to each query from **OpenAI GPT-4o, Facebook LLaMA 3.2, and DeepSeek R1**, and synthesizes a final response from those answers. The model may use info outside the document to enhance the answer, and when it does, it will mention that. 
 
 - **App Developed By:** Shreyas Joshi  

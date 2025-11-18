@@ -26,7 +26,8 @@ app = FastAPI()
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 vector_store = None
 # Path to directory containing individual PDF documents
-pdf_directory = "/Users/sj1212/Documents/RAG_transplant_infections/downloaded_papers/all_docs_for_rag"
+# Use environment variable if available, otherwise use local path
+pdf_directory = os.getenv("PDF_DIRECTORY", "/Users/sj1212/Documents/RAG_transplant_infections/downloaded_papers/all_docs_for_rag")
 FAISS_INDEX_PATH = "faiss_index"
 
 # ✅ Load OpenAI API Key from environment variable
@@ -177,7 +178,7 @@ def create_faiss_index(all_documents):
 
 ### 🛠 Load FAISS Index
 def load_document():
-    """Load FAISS index if available; otherwise, process all PDF documents."""
+    """Load FAISS index if available; otherwise, process all PDF documents if they exist."""
     global vector_store
 
     if os.path.exists(FAISS_INDEX_PATH):
@@ -187,14 +188,26 @@ def load_document():
             print("✅ FAISS index loaded successfully!")
         except Exception as e:
             print(f"❌ Error loading FAISS index: {e}")
-            print("⚠️ Reprocessing documents to recreate FAISS index...")
-            all_documents = extract_content_from_all_pdfs()
-            create_faiss_index(all_documents)
+            # Only try to rebuild if PDF directory exists
+            if os.path.exists(pdf_directory):
+                print("⚠️ Reprocessing documents to recreate FAISS index...")
+                all_documents = extract_content_from_all_pdfs()
+                create_faiss_index(all_documents)
+            else:
+                print(f"❌ PDF directory not found at {pdf_directory}")
+                print("⚠️ Cannot rebuild FAISS index without PDF files.")
+                raise Exception("FAISS index is corrupted and PDF files are not available for rebuilding.")
     else:
-        print("⚠️ FAISS index not found, processing all PDF documents...")
-        all_documents = extract_content_from_all_pdfs()
-        if all_documents:
-            create_faiss_index(all_documents)
+        # Only try to build if PDF directory exists
+        if os.path.exists(pdf_directory):
+            print("⚠️ FAISS index not found, processing all PDF documents...")
+            all_documents = extract_content_from_all_pdfs()
+            if all_documents:
+                create_faiss_index(all_documents)
+        else:
+            print(f"❌ FAISS index not found and PDF directory not available at {pdf_directory}")
+            print("⚠️ Application will not function without FAISS index or PDF files.")
+            raise Exception("FAISS index is missing and PDF files are not available. Please include faiss_index/ folder in deployment.")
 
 
 # Define Request Model

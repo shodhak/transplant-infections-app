@@ -25,13 +25,14 @@ AI-powered RAG application for transplant infectious disease research.
 
 3. **Set Environment Variables**
    In Railway project settings, add:
-   - `OPENAI_API_KEY`: Your OpenAI API key
+   - `OPENAI_API_KEY`: Your OpenAI API key (required)
    - `PORT`: (Railway will set this automatically)
 
 4. **Important Notes**
-   - The FAISS index will be rebuilt on first deployment (takes 10-15 minutes)
-   - Make sure all PDF files are in the correct directory path
+   - **The pre-built FAISS index is included in the repository** (226 documents, 14,085 chunks)
+   - App will use the existing FAISS index - no rebuild needed on deployment
    - The app requires ~2GB RAM minimum
+   - If the FAISS index becomes corrupted, PDF files would be needed to rebuild it
 
 ### Local Development
 

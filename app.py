@@ -107,7 +107,11 @@ st.markdown("<h1 style='text-align: center; color: #008CBA;'>💬 Transplant Inf
 st.write("---")
 
 # API URL - automatically uses Railway URL in production, localhost for development
-API_URL = os.getenv("API_URL", "http://localhost:8000/query/")
+# Check Streamlit secrets first (for Streamlit Cloud), then environment variable, then default
+try:
+    API_URL = st.secrets.get("API_URL", os.getenv("API_URL", "http://localhost:8000/query/"))
+except Exception:
+    API_URL = os.getenv("API_URL", "http://localhost:8000/query/")
 
 # Initialize chat history in session state
 if "chat_history" not in st.session_state:

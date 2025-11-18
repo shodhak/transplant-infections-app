@@ -28,7 +28,7 @@ vector_store = None
 #pdf_path = "/Users/sj1212/Documents/RAG_transplant_infections/downloaded_papers/merged_papers.pdf"
 pdf_path = "merged_papers.pdf"
 #FAISS_INDEX_PATH = "/Users/sj1212/Documents/RAG_transplant_infections/faiss_index"
-FAISS_INDEX_PATH = "faiss_index"
+FAISS_INDEX_PATH = "faiss_index/index"
 
 # ✅ Load OpenAI API Key from environment variable
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")

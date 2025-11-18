@@ -28,5 +28,3 @@ Thumbs.db
 
 # Ignore Streamlit cache & config
 .streamlit/
-
-

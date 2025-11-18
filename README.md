@@ -1,4 +1,3 @@
-````markdown
 # Transplant Infections AI: Intelligent Research Assistant for Clinicians & Scientists
 
 An AI-powered research assistant leveraging Retrieval-Augmented Generation (RAG) to help clinician scientists and researchers efficiently access and synthesize transplant infectious disease literature.
@@ -149,6 +148,3 @@ This application represents a new paradigm in scientific literature interactionâ
 **Literature Corpus Curated By:** Frank Liu, Berk Maden, and Shreyas Joshi  
 **Institution:** Keating Lab, NYU Langone Health  
 **Contact:** shreyas.joshi@nyulangone.org (bug reports, suggestions, literature updates welcome)
-
-
-````
